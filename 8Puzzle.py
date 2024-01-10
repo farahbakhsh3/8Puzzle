@@ -2,7 +2,7 @@ import copy
 
 
 class Node:
-    """ A node class for A* Pathfinding. """
+    """ A node class for A* """
 
     def __init__(self, parent=None, puzzle_board=None):
         self.parent = parent
@@ -13,19 +13,21 @@ class Node:
         self.f = 0
 
     def find_empty_cell(self):
+        """ Find an empty cell on the puzzle board """
         for row in range(len(self.puzzle_board)):
             for col in range(len(self.puzzle_board[row])):
                 if self.puzzle_board[row][col] == 0:
                     return row, col
         return -1, -1
 
-    def make_new_nodes(self):
+    def make_new_puzzle_boards(self):
+        """Make lsit of new puzzle boards based on empty cell """
         adjacent_squares = [(0, -1), (0, 1), (-1, 0), (1, 0)]
         r, c = self.find_empty_cell()
         if r == -1 or c == -1:
             return None
 
-        new_nodes = []
+        new_puzzle_boards = []
         for pos in adjacent_squares:
             new_pos = (r + pos[0], c + pos[1])
             if (new_pos[0] > (len(self.puzzle_board) - 1) or
@@ -33,11 +35,12 @@ class Node:
                     new_pos[1] > (len(self.puzzle_board[len(self.puzzle_board) - 1]) - 1) or
                     new_pos[1] < 0):
                 continue
-            new_node = copy.deepcopy(self.puzzle_board)
-            new_node[r][c], new_node[new_pos[0]][new_pos[1]] = new_node[new_pos[0]][new_pos[1]], new_node[r][c]
-            new_nodes.append(new_node)
+            new_puzzle_board = copy.deepcopy(self.puzzle_board)
+            new_puzzle_board[r][c], new_puzzle_board[new_pos[0]][new_pos[1]] = (
+                new_puzzle_board[new_pos[0]][new_pos[1]], new_puzzle_board[r][c])
+            new_puzzle_boards.append(new_puzzle_board)
 
-        return new_nodes
+        return new_puzzle_boards
 
     def __repr__(self):
         puzzle_board = ""
@@ -45,7 +48,7 @@ class Node:
             for cell in row:
                 puzzle_board += f"{cell or '_'} "
             puzzle_board += "\n"
-        return f"{puzzle_board}--------\ng: {self.g} , h: {self.h} , f: {self.f}\n"
+        return f"{puzzle_board}--------\ng: {self.g} , h: {self.h} , f: {self.f}\n{'-'*20}\n"
 
     def __eq__(self, other):
         for row in range(len(self.puzzle_board)):
@@ -56,45 +59,78 @@ class Node:
 
 
 class AStar:
-    def __init__(self, puzzle_board, end):
+    def __init__(self, puzzle_board, goal_board, heurestic_func_name="misplaced"):
         self.puzzle_board = copy.deepcopy(puzzle_board)
-        self.end = end
+        self.goal_board = goal_board
+
+        # Set heurestic function
+        self.heurestic = self.heurestic_func(heurestic_func_name)
 
     @staticmethod
     def return_path(current_node):
-        """ return Finded path from start to end. """
-        path = []
+        """ return Finded steps from current puzzle board to goal puzzle board """
+        steps = []
         current = current_node
         while current is not None:
-            path.append(current)
+            steps.append(current)
             current = current.parent
-        # Return reversed path
-        return path[::-1]
+        # Return reversed steps
+        return steps[::-1]
 
-    def heuristic(self, current_node):
+    def manhattan_distance(self, puzzle_board):
+        """ calculate the manhattan distance between current puzzle board and goal puzzle board. """
+        distance = 0
+        size = len(puzzle_board)
+
+        for i in range(size):
+            for j in range(size):
+                if puzzle_board[i][j] != 0:
+                    value = puzzle_board[i][j]
+                    goal_position = self.find_position(self.goal_board, value)
+                    distance += abs(i - goal_position[0]) + abs(j - goal_position[1])
+
+        return distance
+
+    @staticmethod
+    def find_position(puzzle_board, value):
+        """ find position of value in puzzle board. """
+        for i in range(len(puzzle_board)):
+            for j in range(len(puzzle_board[i])):
+                if puzzle_board[i][j] == value:
+                    return i, j
+
+    def misplaced(self, puzzle_board):
+        """ calculate the misplaced value between current puzzle_board and goal puzzle board."""
         h = 0
-        for row in range(len(self.end)):
-            for col in range(len(self.end[row])):
-                if current_node[row][col] != self.end[row][col]:
+        for row in range(len(self.goal_board)):
+            for col in range(len(self.goal_board[row])):
+                if puzzle_board[row][col] != self.goal_board[row][col]:
                     h += 1
         return h
 
+    def heurestic_func(self, heurestic_func_name):
+        if heurestic_func_name == "manhattan_distance":
+            return self.manhattan_distance
+        elif heurestic_func_name == "misplaced":
+            return self.misplaced
+        else:
+            AssertionError("Wrong heurestic_func_name")
+
     def astar(self):
         """
-            Returns a list of tuples as a path
-            from the given start to the given end in the given maze
+            Returns a list of tuples as a steps
+            from the given puzzle board to the given goal puzzle board.
         """
-
-        # Create start and end node
+        # Create start and goal node
         start_node = Node(None, self.puzzle_board)
         start_node.g = 0
         start_node.h = 0
         start_node.f = 0
 
-        end_node = Node(None, self.end)
-        end_node.g = 0
-        end_node.h = 0
-        end_node.f = 0
+        goal_node = Node(None, self.goal_board)
+        goal_node.g = 0
+        goal_node.h = 0
+        goal_node.f = 0
 
         # Initialize both open and closed list
         open_list = []
@@ -103,20 +139,14 @@ class AStar:
         # Add the start node
         open_list.append(start_node)
 
-        iter = 0
-        # Loop until you find the end
+        idx_iter = 0
+        # Loop until you find the goal
         while len(open_list) > 0:
-            iter += 1
-            # if iter > 5:
-            #     break
-            # print(iter, "*"*20)
-            # for idx, item in enumerate(open_list):
-            #     print(idx)
-            #     print(item)
-            if iter % 10 == 0:
+            idx_iter += 1
+            if idx_iter % 10 == 0:
                 print(".", end="")
-            if iter % 1000 == 0:
-                print(f"\n{iter} , {len(open_list)}")
+            if idx_iter % 1000 == 0:
+                print(f"\n{idx_iter} , {len(open_list)}")
 
             # Get the current node (a node with smallest f)
             current_node = open_list[0]
@@ -131,12 +161,12 @@ class AStar:
             closed_list.append(current_node)
 
             # Found the goal
-            if current_node == end_node:
+            if current_node == goal_node:
                 return self.return_path(current_node)
 
             # Generate children
             children = []
-            new_nodes = current_node.make_new_nodes()
+            new_nodes = current_node.make_new_puzzle_boards()
             for new_node in new_nodes:
                 # Create new node
                 children.append(Node(current_node, new_node))
@@ -153,7 +183,7 @@ class AStar:
 
                 # Create the f, g, and h values
                 child.g = current_node.g + 1
-                child.h = self.heuristic(child.puzzle_board)
+                child.h = self.heurestic(child.puzzle_board)
                 child.f = child.g + child.h
 
                 # Child is already in the open list
@@ -168,24 +198,29 @@ class AStar:
                 # Add the child to the open list
                 open_list.append(child)
 
-        print("Couldn't get a path to destination")
+        print("There is no solution for this puzzle!!! :-(")
         return None
 
 
 def main():
     """
         Main method.
-        Initiate maze and run A*.
+        Initiate puzzle board and goal board
+        Then run A*.
     """
-    puzzle_board = [[1, 2, 3], [4, 5, 6], [0, 7, 8]]
-    end = [[1, 2, 3], [4, 5, 6], [7, 8, 0]]
+    puzzle_board = [[4, 7, 2],
+                    [6, 8, 5],
+                    [3, 1, 0]]
+    goal_board = [[1, 2, 3],
+                  [4, 5, 6],
+                  [7, 8, 0]]
 
-    astar = AStar(puzzle_board, end)
-    path = astar.astar()
+    astar = AStar(puzzle_board, goal_board, "manhattan_distance")
+    steps = astar.astar()
 
-    if path is not None:
-        for idx, item in enumerate(path):
-            print(idx)
+    if steps is not None:
+        for idx, item in enumerate(steps):
+            print(f"->> Step : {idx} <<-")
             print(item)
 
 
