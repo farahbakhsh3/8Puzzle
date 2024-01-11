@@ -67,7 +67,7 @@ class AStar:
         self.heurestic = self.heurestic_func(heurestic_func_name)
 
     @staticmethod
-    def return_path(current_node):
+    def return_steps(current_node):
         """ return Finded steps from current puzzle board to goal puzzle board """
         steps = []
         current = current_node
@@ -80,27 +80,26 @@ class AStar:
     def manhattan_distance(self, puzzle_board):
         """ calculate the manhattan distance between current puzzle board and goal puzzle board. """
         distance = 0
-        size = len(puzzle_board)
-
-        for i in range(size):
-            for j in range(size):
-                if puzzle_board[i][j] != 0:
-                    value = puzzle_board[i][j]
+        for row in range(len(puzzle_board)):
+            for col in range(len(puzzle_board[row])):
+                if puzzle_board[row][col] != 0:
+                    value = puzzle_board[row][col]
                     goal_position = self.find_position(self.goal_board, value)
-                    distance += abs(i - goal_position[0]) + abs(j - goal_position[1])
+                    distance += (abs(row - goal_position[0]) +
+                                 abs(col - goal_position[1]))
 
         return distance
 
     @staticmethod
     def find_position(puzzle_board, value):
         """ find position of value in puzzle board. """
-        for i in range(len(puzzle_board)):
-            for j in range(len(puzzle_board[i])):
-                if puzzle_board[i][j] == value:
-                    return i, j
+        for row in range(len(puzzle_board)):
+            for col in range(len(puzzle_board[row])):
+                if puzzle_board[row][col] == value:
+                    return row, col
 
     def misplaced(self, puzzle_board):
-        """ calculate the misplaced value between current puzzle_board and goal puzzle board."""
+        """ calculate the misplaced value between current puzzle board and goal puzzle board."""
         h = 0
         for row in range(len(self.goal_board)):
             for col in range(len(self.goal_board[row])):
@@ -116,7 +115,7 @@ class AStar:
         else:
             AssertionError("Wrong heurestic_func_name")
 
-    def astar(self):
+    def run(self):
         """
             Returns a list of tuples as a steps
             from the given puzzle board to the given goal puzzle board.
@@ -162,7 +161,7 @@ class AStar:
 
             # Found the goal
             if current_node == goal_node:
-                return self.return_path(current_node)
+                return self.return_steps(current_node)
 
             # Generate children
             children = []
@@ -208,15 +207,15 @@ def main():
         Initiate puzzle board and goal board
         Then run A*.
     """
-    puzzle_board = [[4, 7, 2],
-                    [6, 8, 5],
-                    [3, 1, 0]]
+    puzzle_board = [[8, 4, 7],
+                    [1, 6, 2],
+                    [3, 5, 0]]
     goal_board = [[1, 2, 3],
                   [4, 5, 6],
                   [7, 8, 0]]
 
     astar = AStar(puzzle_board, goal_board, "manhattan_distance")
-    steps = astar.astar()
+    steps = astar.run()
 
     if steps is not None:
         for idx, item in enumerate(steps):
